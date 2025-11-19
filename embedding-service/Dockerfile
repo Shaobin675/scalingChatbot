@@ -10,6 +10,6 @@ COPY . .
 
 EXPOSE 8003
 
-ENV API_KEY=topsecret
-
+ENV API_KEY=GET_YOUR_OWN
+ENV OPENAI_API_KEY=GET_YOUR_OWN
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]

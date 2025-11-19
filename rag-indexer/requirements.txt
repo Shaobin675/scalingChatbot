@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
-langchain
-faiss-cpu
-redis
+pydantic
+httpx
+langchain  # only if you use LangChain embedding classes
+openai     # if using OpenAI embeddings
+numpy
 pinecone-client==8.0.0  
 pinecone==6.0.0         

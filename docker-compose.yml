@@ -3,78 +3,77 @@ version: "3.9"
 services:
   postgres:
     image: postgres:18
-    container_name: postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: topsecret
+      POSTGRES_PASSWORD: GET_YOUR_OWN
       POSTGRES_DB: chatdb
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:8-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
+    ports:
+      - "6379:6379"
 
   chat-orchestrator:
     build:
       context: ./chat-orchestrator
       dockerfile: Dockerfile
+    environment:
+      - POSTGRES_DSN=postgresql://postgres:GET_YOUR_OWN@postgres:5432/chatdb
+      - REDIS_URL=redis://redis:6379/0
+      - LANGGRAPH_SERVICE_URL=http://langgraph-service:8001
+      - API_KEY=GET_YOUR_OWN
+    ports:
+      - "8000:8000"
     depends_on:
       - postgres
       - redis
       - langgraph-service
-    environment:
-      POSTGRES_DSN: postgresql://postgres:topsecret@postgres:5432/chatdb
-      REDIS_URL: redis://redis:6379/0
-      LANGGRAPH_SERVICE_URL: http://langgraph-service:8001
-      API_KEY: topsecret
-    ports:
-      - "8000:8000"
 
   langgraph-service:
     build:
       context: ./langgraph-service
       dockerfile: Dockerfile
+    environment:
+      - LANGGRAPH_API_KEY=GET_YOUR_OWN
+      - OUTBOUND_API_KEY=GET_YOUR_OWN
+      - RAG_SERVICE_URL=http://rag-service:8002
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8003
+    ports:
+      - "8001:8001"
     depends_on:
       - rag-service
       - embedding-service
-    environment:
-      RAG_SERVICE_URL: http://rag-service:8002
-      EMBEDDING_SERVICE_URL: http://embedding-service:8003
-      API_KEY: topsecret
-    ports:
-      - "8001:8001"
 
   rag-service:
     build:
       context: ./rag-service
       dockerfile: Dockerfile
-    depends_on:
-      - redis
     environment:
-      REDIS_URL: redis://redis:6379/0
-                - PINECONE_API_KEY=${PINECONE_API_KEY}
-                - PINECONE_ENV=${PINECONE_ENV}
-                - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
-                - API_KEY=${RAG_API_KEY}
+      - API_KEY=changeme123
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENV=${PINECONE_ENV}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
     ports:
       - "8002:8002"
+    depends_on:
+      - redis
 
   embedding-service:
     build:
       context: ./embedding-service
       dockerfile: Dockerfile
     environment:
-      API_KEY: topsecret
+      - API_KEY=GET_YOUR_OWN
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "8003:8003"
 
 volumes:
-  pgdata:
-  redisdata:
+  - pgdata:/var/lib/postgresql/data
+  - redisdata:/data

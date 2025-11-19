@@ -1,31 +1,28 @@
-# rag-indexer/pipeline/search.py
-import numpy as np
-from typing import List, Tuple
+# rag-service/pipeline/search.py
+from .index_build import PineconeIndexer
+from typing import List, Dict, Any
+from config import API_KEY
 
-class SimpleVectorSearch:
+indexer = PineconeIndexer()
+
+async def pinecone_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     """
-    In-memory cosine similarity search for document embeddings.
+    Async wrapper for Pinecone query; run blocking call in thread if necessary.
     """
-    @staticmethod
-    def cosine_similarity(vec_a, vec_b):
-        a = np.array(vec_a, dtype=np.float32)
-        b = np.array(vec_b, dtype=np.float32)
-        denom = np.linalg.norm(a) * np.linalg.norm(b)
-        if denom == 0:
-            return 0.0
-        return float(np.dot(a, b) / denom)
+    loop = __import__("asyncio").get_event_loop()
+    res = await loop.run_in_executor(None, indexer.query, query, top_k)
+    matches = res.get("matches", []) if isinstance(res, dict) else []
+    formatted = []
+    for m in matches:
+        formatted.append({
+            "id": m.get("id"),
+            "score": m.get("score"),
+            "metadata": m.get("metadata", {}),
+            "text": m.get("metadata", {}).get("snippet", "")
+        })
+    return formatted
 
-    @staticmethod
-    def search(query_embedding: list,
-               docs: List[dict],
-               top_k: int = 3) -> List[Tuple[dict, float]]:
-        """
-        Returns list of (doc, score)
-        """
-        scores = []
-        for d in docs:
-            score = SimpleVectorSearch.cosine_similarity(query_embedding, d["embedding"])
-            scores.append((d, score))
-
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return scores[:top_k]
+async def pinecone_retrieve(ids: List[str]):
+    loop = __import__("asyncio").get_event_loop()
+    res = await loop.run_in_executor(None, indexer.retrieve_by_ids, ids)
+    return res
