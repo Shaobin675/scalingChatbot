@@ -55,23 +55,33 @@ function App() {
     socket.onmessage = (event) => {
       const msg = event.data;
 
-      // ---------------- File upload status ----------------
+      // ---------------- LangGraph-forwarded events ----------------
+      if (msg.startsWith("WS:")) {
+        const content = msg.replace(/^WS:/, "");
+        if (content.startsWith("progress:")) {
+          addMessage("⏳ Progress: " + content.replace("progress:", "") + "%", "bot");
+        } else if (content.startsWith("summary:")) {
+          const summaryText = content.replace("summary:", "");
+          const words = summaryText.split(" ");
+          const truncated = words.slice(0, 250).join(" ");
+          addBotMessage(truncated + (words.length > 250 ? "..." : ""));
+        } else {
+          addBotMessage(content); // generic event
+        }
+        return;
+      }
+
+      // ---------------- Old/legacy events fallback ----------------
       if (msg.startsWith("📁 Received") || msg.startsWith("✅")) {
         addMessage(msg, "user");
-      }
-      // ---------------- File summary ----------------
-      else if (msg.startsWith("📝")) {
+      } else if (msg.startsWith("📝")) {
         const summaryText = msg.replace(/^📝\s*/, "");
         const words = summaryText.split(" ");
         const truncated = words.slice(0, 250).join(" ");
         addBotMessage(truncated + (words.length > 250 ? "..." : ""));
-      }
-      // ---------------- Warnings / idle ----------------
-      else if (msg.startsWith("⚠️")) {
+      } else if (msg.startsWith("⚠️")) {
         addMessage(msg, "warning");
-      }
-      // ---------------- Normal bot response ----------------
-      else {
+      } else {
         addBotMessage(msg);
       }
     };
@@ -85,7 +95,8 @@ function App() {
   // ---------------- Send user message ----------------
   const sendMessage = () => {
     if (!userInput.trim() || !ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(userInput);
+    const payload = { type: "user_message", message: userInput };
+    ws.send(JSON.stringify(payload));
     addMessage(userInput, "user");
     setUserInput("");
   };
@@ -119,7 +130,7 @@ function App() {
       return;
     }
 
-    addMessage(`Uploaded ${file.name} added to knowledge base.`, "user");
+    addMessage(`Uploading ${file.name}...`, "user");
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -131,7 +142,7 @@ function App() {
         data: base64Data,
       };
       ws.send(JSON.stringify(payload));
-      addBotMessage("Bot is typing...");
+      addBotMessage("Bot is processing the file...");
     };
     reader.readAsDataURL(file);
   };
